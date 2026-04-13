@@ -1,0 +1,9 @@
+[project]
+name = "read-book"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pypdf>=5.9.0",
+]
