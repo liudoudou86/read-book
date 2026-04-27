@@ -30,7 +30,8 @@ allowed-tools: Read, Write, Edit, Bash
 | 写入读书笔记    | `Write` 工具                                                  |
 | 追加评价/思考   | `Edit` 工具                                                   |
 | 创建 Skill 目录 | `Bash` 工具                                                   |
-| 生成专属 Skill  | `Write` 工具                                                  |
+| 生成专属 Skill  | 推荐 `Bash` + `skill_generator.py`；或 `Write` 手动按模板生成 |
+| 列出已分析书籍  | `Bash` + `skill_generator.py --action list`                   |
 
 **输出目录**：生成的读书笔记和 Skill 写入 `~/.opencode/skill/books/{slug}/`
 
@@ -38,8 +39,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 路径约定
 本 skill 当中的所有的引用及运行脚本的路径请优先从当前skill目录查找，例如：
-- 引用 `references/test_types_detail.md`
-- 运行脚本 `uv run python scripts/parse_jira_issue.py <JIRA_ISSUE>`
+- 引用 `references/analysis_rules.md`
+- 运行脚本 `uv run python scripts/skill_generator.py`
 
 --- 
 
@@ -186,12 +187,41 @@ allowed-tools: Read, Write, Edit, Bash
 
 **目标**：将书籍知识封装为可调用的 Skill
 
-**步骤**：
+**步骤**（推荐使用脚本自动生成）：
+
+```bash
+uv run python scripts/skill_generator.py \
+  --book-title "{书名}" \
+  --note-path "~/.opencode/skill/books/{slug}/note.md"
+```
+
+脚本会自动解析读书笔记的结构（核心观点、关键概念、适用场景等），按 `prompts/step6_builder.md` 模板生成结构化 SKILL.md。
+
+**手动方式**（如需定制）：
 1. 读取 `prompts/step6_builder.md` 获取 Skill 模板
 2. 基于读书笔记，提取核心知识
 3. 生成专属 Skill 文件
 
 **输出路径**：`~/.opencode/skill/books/{slug}/SKILL.md`
+
+**触发词**：`/book-{slug}`
+
+---
+
+### Step 7: 验证生成的 Skill
+
+**目标**：确保生成的专属 Skill 结构完整、可正常调用
+
+**步骤**：
+1. **结构检查**：确认 SKILL.md 包含以下章节：
+   - 书籍信息
+   - 核心观点（至少 3 条）
+   - 关键概念
+   - 边界与局限
+   - 常见问题 FAQ
+2. **路径检查**：确认文件位于 `~/.opencode/skill/books/{slug}/SKILL.md`
+3. **问答测试**：调用 `/book-{slug}` 触发词，测试回答关于这本书的问题
+4. **修复问题**：如果发现结构问题，检查笔记格式后重新生成
 
 ---
 
@@ -199,7 +229,14 @@ allowed-tools: Read, Write, Edit, Bash
 
 ### 列出已分析的书籍
 ```bash
-ls -la ~/.opencode/skill/books/
+uv run python scripts/skill_generator.py --action list
+```
+
+### 生成专属 Skill（自动解析笔记）
+```bash
+uv run python scripts/skill_generator.py \
+  --book-title "{书名}" \
+  --note-path "~/.opencode/skill/books/{slug}/note.md"
 ```
 
 ### 查看某本书的笔记
