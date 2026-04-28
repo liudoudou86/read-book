@@ -30,7 +30,9 @@ def slug_from_path(note_path):
     while parent.name != "books" and parent.name != parent.anchor:
         if (parent / "note.md").exists():
             return parent.name
-        parent = parent.parent
+        prev, parent = parent, parent.parent
+        if prev == parent:  # reached root (Path("/").parent == Path("/"))
+            break
     return None
 
 
@@ -382,7 +384,8 @@ def generate_skill(book_title, note_path, output_dir, force=False):
 
     skill_content = f"""---
 name: book-{slug}
-description: "{title} — RIA++ 结构化方法论助手。{a2_desc}"
+description: |
+  {title} — RIA++ 结构化方法论助手。{a2_desc}
 user-invocable: true
 use_case: |
   当用户询问关于《{title}》的方法论、决策框架、可执行步骤时，应调用本 Skill。
