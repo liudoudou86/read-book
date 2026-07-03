@@ -9,9 +9,9 @@
 - **7 步分析阅读法 (RIA++)**：分类 → 骨架 → 关键词 → 三重验证 → 评价 → 笔记 → 生成 Skill
 - **支持多种格式**：`.pdf` / `.epub` / `.docx` / `.txt` / `.md`
 - **多层回退链**：每种格式自动降级（如 PDF: docling → pdftotext → pypdf → pdfminer）
-- **成本估算**：处理前预估 token 和费用
+- **成本估算**：处理前预估 token 和费用（默认 GLM-5.2 计价）
 - **章节检测**：自动识别中文/英文/日文章节和目录
-- **专属 Skill 生成**：每本书生成 SKILL.md + glossary.md + patterns.md + cheatsheet.md
+- **专属 Skill 生成**：每本书生成 SKILL.md + glossary.md + patterns.md + cheatsheet.md + metadata.json
 - **RIA++ 方法论**：六段结构（R/I/A1/A2/E/B）+ 三重验证
 
 ---
@@ -23,21 +23,23 @@
 ```
 /read-book
 ```
-或说「帮我读一本书」
+
+或说「帮我读一本书」、「分析这本书」、「生成读书笔记」
 
 ### 2. 提供书籍文件
 
-上传 `.txt` 或 `.pdf` 格式的书籍文件
+支持 `.pdf` / `.epub` / `.docx` / `.txt` / `.md` 格式
 
 ### 3. 分析阅读
 
-按 6 步流程进行深度分析：
-1. 书籍分类
-2. 搭建骨架
-3. 提取关键词
-4. 评价作者
-5. 生成读书笔记
-6. 生成专属 AI Skill
+按 7 步流程进行深度分析：
+1. **Step 0**：提取书籍文本（自动识别格式）
+2. **Step 0.5**：成本估算（大文件必做）
+3. **Step 0.6**：章节检测
+4. **Step 1-4**：分析阅读（分类 → 骨架 → 关键词 → 评价）
+5. **Step 3.5**：三重验证
+6. **Step 5**：生成 RIA++ 六段笔记
+7. **Step 6**：生成专属 AI Skill
 
 ---
 
@@ -71,18 +73,19 @@ uv run python scripts/chapter_detector.py --file "./temp/刻意练习.txt"
 
 #### Step 3-5: 分析过程
 
-按分析阅读 7 步法进行，最终输出：
-- 读书笔记：`books/book-deliberate-practice/note.md`
-- 专属 Skill + glossary + patterns + cheatsheet：`books/book-deliberate-practice/`
+按分析阅读 7 步法进行，最终输出到 `~/.config/opencode/skill/books/book-deliberate-practice/`：
+- 读书笔记：`note.md`
+- 专属 Skill：`SKILL.md` + `glossary.md` + `patterns.md` + `cheatsheet.md` + `metadata.json`
 
 #### Step 6: 生成专属 Skill
 
-生成的专属 Skill 包含：
-- 核心观点
-- 关键概念
-- 适用场景
-- 边界/局限
-- 方法/框架
+```bash
+uv run python scripts/skill_generator.py \
+  --book-title "刻意练习" \
+  --note-path "~/.config/opencode/skill/books/book-deliberate-practice/note.md"
+```
+
+生成的专属 Skill 包含 RIA++ 六段结构化方法论（R 原文引用 / I 方法论骨架 / A1 案例 / A2 触发场景 / E 可执行步骤 / B 边界），每项方法论经过三重验证（V1 跨域 / V2 预测力 / V3 独特性），未通过的单元被移至 `rejected/` 目录。
 
 ---
 
@@ -181,6 +184,9 @@ read-book-skill/
 ├── SKILL.md                    # 主技能定义（7 步 RIA++ 流程）
 ├── README.md                   # 本文件
 ├── pyproject.toml              # Python 项目配置
+├── .python-version             # Python 版本锁定
+├── .github/workflows/
+│   └── ci.yml                  # CI: test + lint + skill 验证
 ├── scripts/
 │   ├── extract.py              # 统一提取入口（自动识别格式）
 │   ├── pdf_extractor.py        # PDF 提取（docling → pdftotext → pypdf → pdfminer）
@@ -188,7 +194,7 @@ read-book-skill/
 │   ├── docx_extractor.py       # DOCX 提取（python-docx → zipfile 回退）
 │   ├── text_extractor.py       # TXT/MD 读取（BOM 感知解码）
 │   ├── chapter_detector.py     # 多语言章节/目录检测
-│   ├── cost_estimator.py       # Token 成本预估
+│   ├── cost_estimator.py       # Token 成本预估（GLM-5.2）
 │   ├── skill_generator.py      # RIA++ 专属 Skill 生成器（含三重验证）
 │   └── metadata.py             # 元数据聚合
 ├── prompts/
@@ -205,8 +211,8 @@ read-book-skill/
 │   ├── test_chapter_detector.py
 │   ├── test_cost_estimator.py
 │   └── test_skill_generator.py
-└── .github/workflows/
-    └── ci.yml                  # CI: test + lint + skill 验证
+└── temp/                       # 提取缓存（可清理）
+    └── *.txt                   # 书籍提取后的纯文本
 ```
 
 ---
@@ -216,25 +222,25 @@ read-book-skill/
 ### 查看已分析的书籍
 
 ```bash
-ls -la ./books/
+uv run python scripts/skill_generator.py --action list
 ```
 
 ### 查看某本书的读书笔记
 
 ```bash
-cat ./books/book-{slug}/note.md
+cat ~/.config/opencode/skill/books/{slug}/note.md
+```
+
+### 查看被过滤的方法论
+
+```bash
+ls ~/.config/opencode/skill/books/{slug}/rejected/
 ```
 
 ### 调用生成的专属 Skill
 
-```bash
-/book-{slug}
 ```
-
-### 列出所有专属 Skill
-
-```bash
-uv run python scripts/skill_generator.py --action list
+/book-{slug}
 ```
 
 ---
@@ -242,30 +248,27 @@ uv run python scripts/skill_generator.py --action list
 ## 依赖安装
 
 ```bash
-# 基础依赖（仅 PDF）
+# 基础依赖（仅 PDF + pypdf）
 uv sync
 
-# 可选：增强 PDF 提取（pdfminer.six 回退）
-uv add read-book[pdf]
+# 全部安装（PDF 回退链 + EPUB + DOCX）
+uv sync --all-extras
+```
 
-# 可选：EPUB 支持
-uv add read-book[epub]
-
-# 可选：DOCX 支持
-uv add read-book[docx]
-
-# 全部安装
-uv add read-book[all]
+等价于逐个添加：
+```bash
+uv add pdfminer.six   # PDF 回退增强
+uv add ebooklib beautifulsoup4  # EPUB 支持
+uv add python-docx    # DOCX 支持
 ```
 
 ---
 
 ## 输出结构
 
-生成的专属 Skill 目录包含：
+生成的专属 Skill 目录位于 `~/.config/opencode/skill/books/{slug}/`：
 
 ```
-~/.opencode/skill/books/{slug}/
 ├── SKILL.md           # 核心入口（~4K tokens）
 ├── glossary.md        # 术语表（~1.5K tokens，按需加载）
 ├── patterns.md        # 模式表（~2K tokens，按需加载）
@@ -273,18 +276,26 @@ uv add read-book[all]
 ├── note.md            # 原始读书笔记
 ├── metadata.json      # 统计元数据
 └── rejected/          # 未通过验证的方法论单元
+    └── {method}.md
 ```
+
+---
 
 ## 核心方法论
 
 本 Skill 基于《如何阅读一本书》的分析阅读法 + RIA++ 方法论框架：
 
-**Step 0**：提取书籍文本（PDF/EPUB/DOCX/TXT 自动识别）
-**Step 0.5**：成本估算（大文件必做）
-**Step 0.6**：章节检测
-**Step 1-4**：分析阅读四步（分类 → 骨架 → 关键词 → 评价）
-**Step 3.5**：三重验证（V1 跨域 / V2 预测力 / V3 独特性）
-**Step 5**：生成 RIA++ 六段笔记（R/I/A1/A2/E/B）
-**Step 6**：生成专属 AI Skill（SKILL.md + 补充文件）
+```
+Step 0   提取书籍文本（PDF/EPUB/DOCX/TXT/MD 自动识别）
+Step 0.5 成本估算（>50K tokens 提示分章处理）
+Step 0.6 章节检测（中文/英文/日文 + TOC 识别）
+Step 1   书籍分类
+Step 2   搭建骨架（一句话概括 + 结构拆解）
+Step 3   提取关键词 + 主旨句
+Step 3.5 三重验证（V1 跨域 / V2 预测力 / V3 独特性）
+Step 4   评价作者
+Step 5   生成 RIA++ 六段笔记（R/I/A1/A2/E/B）
+Step 6   生成专属 AI Skill（SKILL.md + 补充文件）
+```
 
 详细规则见 `references/analysis_rules.md`

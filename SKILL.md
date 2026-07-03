@@ -40,7 +40,7 @@ use_case: |
 | 列出已分析书籍        | `Bash` + `uv run python scripts/skill_generator.py --action list`        |
 | 大文件探测            | 优先用 `Grep` / `Glob` 而非 `Read` 全文（>5000 行时）                   |
 
-**输出目录**：生成的读书笔记和 Skill 写入 `~/.opencode/skill/books/{slug}/`
+**输出目录**：生成的读书笔记和 Skill 写入 `~/.config/opencode/skill/books/{slug}/`
 
 ---
 
@@ -211,7 +211,7 @@ PDF 参数说明：
 3. 方法论内容拆分为独立单元，每个单元填充 R/I/A1/A2/E/B 六段 + 验证记录
 4. 填充模板，生成完整读书笔记
 
-**输出路径**：`~/.opencode/skill/books/{slug}/note.md`
+**输出路径**：`~/.config/opencode/skill/books/{slug}/note.md`
 
 **笔记结构**：
 ```
@@ -234,7 +234,7 @@ PDF 参数说明：
 ```bash
 uv run python scripts/skill_generator.py \
   --book-title "{书名}" \
-  --note-path "~/.opencode/skill/books/{slug}/note.md"
+  --note-path "~/.config/opencode/skill/books/{slug}/note.md"
 ```
 
 脚本执行流程：
@@ -244,7 +244,7 @@ uv run python scripts/skill_generator.py \
 
 **输出路径**：
 ```
-~/.opencode/skill/books/{slug}/
+~/.config/opencode/skill/books/{slug}/
 ├── SKILL.md          # 核心触发入口（~4K tokens）
 ├── glossary.md       # 术语表（~1.5K tokens）
 ├── patterns.md       # 技术/模式表（~2K tokens）
@@ -262,7 +262,7 @@ uv run python scripts/skill_generator.py \
 
 **步骤**：
 1. **RIA++ 完整性检查**：每个方法论单元确认包含全部六段
-2. **路径检查**：确认文件位于 `~/.opencode/skill/books/{slug}/`
+2. **路径检查**：确认文件位于 `~/.config/opencode/skill/books/{slug}/`
 3. **问答测试**：调用 `/book-{slug}` 测试
 4. **修复问题**：如果发现问题，检查笔记格式后重新生成
 
@@ -277,12 +277,12 @@ uv run python scripts/skill_generator.py --action list
 
 ### 查看某本书的笔记
 ```bash
-cat ~/.opencode/skill/books/{slug}/note.md
+cat ~/.config/opencode/skill/books/{slug}/note.md
 ```
 
 ### 查看被过滤的方法论单元
 ```bash
-ls ~/.opencode/skill/books/{slug}/rejected/
+ls ~/.config/opencode/skill/books/{slug}/rejected/
 ```
 
 ### 调用生成的专属 Skill
@@ -296,7 +296,7 @@ ls ~/.opencode/skill/books/{slug}/rejected/
 
 生成的专属 Skill 目录：
 ```
-~/.opencode/skill/books/{slug}/
+~/.config/opencode/skill/books/{slug}/
 ├── SKILL.md           # 核心：frontmatter + 方法论卡片 + 索引
 ├── glossary.md        # 术语表：书中关键概念定义
 ├── patterns.md        # 模式表：技术、算法、设计模式

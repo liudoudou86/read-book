@@ -14,7 +14,7 @@
 # 自动生成（含三重验证过滤）
 uv run python scripts/skill_generator.py \
   --book-title "{书名}" \
-  --note-path "~/.opencode/skill/books/{slug}/note.md"
+  --note-path "~/.config/opencode/skill/books/{slug}/note.md"
 ```
 
 脚本执行：
