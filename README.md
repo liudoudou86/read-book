@@ -6,9 +6,13 @@
 
 ## 功能特点
 
-- **6 步分析阅读法**：分类 → 骨架 → 关键词 → 评价 → 笔记 → 生成 Skill
-- **支持多种格式**：`.txt` 和 `.pdf`
-- **专属 Skill 生成**：每本书生成一个可调用的 AI 助手
+- **7 步分析阅读法 (RIA++)**：分类 → 骨架 → 关键词 → 三重验证 → 评价 → 笔记 → 生成 Skill
+- **支持多种格式**：`.pdf` / `.epub` / `.docx` / `.txt` / `.md`
+- **多层回退链**：每种格式自动降级（如 PDF: docling → pdftotext → pypdf → pdfminer）
+- **成本估算**：处理前预估 token 和费用
+- **章节检测**：自动识别中文/英文/日文章节和目录
+- **专属 Skill 生成**：每本书生成 SKILL.md + glossary.md + patterns.md + cheatsheet.md
+- **RIA++ 方法论**：六段结构（R/I/A1/A2/E/B）+ 三重验证
 
 ---
 
@@ -43,22 +47,33 @@
 
 #### Step 1: 上传书籍
 
-用户上传 `刻意练习.txt` 或 `刻意练习.pdf`
+用户上传 `刻意练习.pdf` / `刻意练习.epub` / `刻意练习.docx` 等
 
-#### Step 2: 读取内容
-
-- `.txt` 文件：直接用 Read 工具读取
-- `.pdf` 文件：用 pdf_extractor.py 转换
+#### Step 2: 读取内容（统一入口）
 
 ```bash
-uv run python scripts/pdf_extractor.py --file "刻意练习.pdf" --output "./temp/刻意练习.txt"
+uv run python scripts/extract.py --file "刻意练习.pdf" --output "./temp/刻意练习.txt"
+```
+
+PDF 额外参数：`--technical`（技术类书籍优先 docling）、`--start N --end N`（指定页码范围）
+
+#### Step 2.5: 成本估算（大文件必做）
+
+```bash
+uv run python scripts/cost_estimator.py --file "./temp/刻意练习.txt"
+```
+
+#### Step 2.6: 章节检测
+
+```bash
+uv run python scripts/chapter_detector.py --file "./temp/刻意练习.txt"
 ```
 
 #### Step 3-5: 分析过程
 
-按分析阅读 6 步法进行，最终输出：
+按分析阅读 7 步法进行，最终输出：
 - 读书笔记：`books/book-deliberate-practice/note.md`
-- 专属 Skill：`books/book-deliberate-practice/SKILL.md`
+- 专属 Skill + glossary + patterns + cheatsheet：`books/book-deliberate-practice/`
 
 #### Step 6: 生成专属 Skill
 
@@ -163,11 +178,19 @@ book-deliberate-practice：
 
 ```
 read-book-skill/
-├── SKILL.md                    # 主技能定义
+├── SKILL.md                    # 主技能定义（7 步 RIA++ 流程）
 ├── README.md                   # 本文件
-├── tools/
-│   ├── pdf_extractor.py        # PDF 转文本工具
-│   └── skill_generator.py      # 专属 Skill 生成工具
+├── pyproject.toml              # Python 项目配置
+├── scripts/
+│   ├── extract.py              # 统一提取入口（自动识别格式）
+│   ├── pdf_extractor.py        # PDF 提取（docling → pdftotext → pypdf → pdfminer）
+│   ├── epub_extractor.py       # EPUB 提取（ebooklib → zipfile 回退）
+│   ├── docx_extractor.py       # DOCX 提取（python-docx → zipfile 回退）
+│   ├── text_extractor.py       # TXT/MD 读取（BOM 感知解码）
+│   ├── chapter_detector.py     # 多语言章节/目录检测
+│   ├── cost_estimator.py       # Token 成本预估
+│   ├── skill_generator.py      # RIA++ 专属 Skill 生成器（含三重验证）
+│   └── metadata.py             # 元数据聚合
 ├── prompts/
 │   ├── step1_classify.md       # 书籍分类
 │   ├── step2_skeleton.md       # 骨架搭建
@@ -175,9 +198,15 @@ read-book-skill/
 │   ├── step4_evaluate.md       # 评价作者
 │   ├── step5_note.md           # 读书笔记模板
 │   └── step6_builder.md        # 专属 Skill 生成模板
-└── references/
-    ├── analysis_rules.md       # 分析阅读规则
-    └── 阅读层次指南.md         # 四层次阅读说明
+├── references/
+│   ├── analysis_rules.md       # 分析阅读规则
+│   └── read_level.md           # 四层次阅读说明
+├── tests/
+│   ├── test_chapter_detector.py
+│   ├── test_cost_estimator.py
+│   └── test_skill_generator.py
+└── .github/workflows/
+    └── ci.yml                  # CI: test + lint + skill 验证
 ```
 
 ---
@@ -213,30 +242,49 @@ uv run python scripts/skill_generator.py --action list
 ## 依赖安装
 
 ```bash
-uv add pypdf
+# 基础依赖（仅 PDF）
+uv sync
+
+# 可选：增强 PDF 提取（pdfminer.six 回退）
+uv add read-book[pdf]
+
+# 可选：EPUB 支持
+uv add read-book[epub]
+
+# 可选：DOCX 支持
+uv add read-book[docx]
+
+# 全部安装
+uv add read-book[all]
 ```
 
 ---
 
+## 输出结构
+
+生成的专属 Skill 目录包含：
+
+```
+~/.opencode/skill/books/{slug}/
+├── SKILL.md           # 核心入口（~4K tokens）
+├── glossary.md        # 术语表（~1.5K tokens，按需加载）
+├── patterns.md        # 模式表（~2K tokens，按需加载）
+├── cheatsheet.md      # 速查表（~1K tokens，按需加载）
+├── note.md            # 原始读书笔记
+├── metadata.json      # 统计元数据
+└── rejected/          # 未通过验证的方法论单元
+```
+
 ## 核心方法论
 
-本 Skill 基于《如何阅读一本书》的分析阅读法，包含三个阶段：
+本 Skill 基于《如何阅读一本书》的分析阅读法 + RIA++ 方法论框架：
 
-**阶段一：这本书在谈些什么？**
-- 分类
-- 一句话概括
-- 结构拆解
-- 找出问题
-
-**阶段二：如何叙述的？**
-- 关键词共识
-- 找出主旨
-- 找出论述
-- 找出答案
-
-**阶段三：评价与批评**
-- 评价前先理解
-- 理性表达不同意
-- 评价标准
+**Step 0**：提取书籍文本（PDF/EPUB/DOCX/TXT 自动识别）
+**Step 0.5**：成本估算（大文件必做）
+**Step 0.6**：章节检测
+**Step 1-4**：分析阅读四步（分类 → 骨架 → 关键词 → 评价）
+**Step 3.5**：三重验证（V1 跨域 / V2 预测力 / V3 独特性）
+**Step 5**：生成 RIA++ 六段笔记（R/I/A1/A2/E/B）
+**Step 6**：生成专属 AI Skill（SKILL.md + 补充文件）
 
 详细规则见 `references/analysis_rules.md`

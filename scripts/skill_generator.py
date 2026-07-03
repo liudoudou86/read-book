@@ -11,6 +11,7 @@ RIA++ Skill 生成器 (book2skill)
 """
 
 import argparse
+import json
 import os
 import re
 from datetime import datetime
@@ -78,9 +79,7 @@ def parse_methodology_units(content):
     """从笔记中解析方法论单元列表（### 层级），返回列表"""
     units = []
     sections = split_sections(content)
-    methodology_section = (
-        sections.get("方法论拆解") or sections.get("方法论") or ""
-    )
+    methodology_section = sections.get("方法论拆解") or sections.get("方法论") or ""
     if not methodology_section:
         return units
 
@@ -93,7 +92,7 @@ def parse_methodology_units(content):
         if not heading_match:
             continue
         name = heading_match.group(1).strip()
-        body = block[heading_match.end():].strip()
+        body = block[heading_match.end() :].strip()
 
         subsections = {}
         sub_blocks = re.split(r"\n(?=####\s+)", body)
@@ -104,7 +103,7 @@ def parse_methodology_units(content):
             sub_match = re.match(r"^####\s+(.+?)(?:\n|$)", sb)
             if sub_match:
                 key = sub_match.group(1).strip()
-                val = sb[sub_match.end():].strip()
+                val = sb[sub_match.end() :].strip()
                 subsections[key] = val
 
         unit = {
@@ -121,46 +120,9 @@ def parse_methodology_units(content):
 
     return units
 
-    blocks = re.split(r"\n(?=###\s+)", methodology_section)
-    for block in blocks:
-        block = block.strip()
-        if not block:
-            continue
-        heading_match = re.match(r"^###\s+(.+?)(?:\n|$)", block)
-        if not heading_match:
-            continue
-        name = heading_match.group(1).strip()
-        body = block[heading_match.end():].strip()
-
-        subsections = {}
-        sub_blocks = re.split(r"\n(?=####\s+)", body)
-        for sb in sub_blocks:
-            sb = sb.strip()
-            if not sb:
-                continue
-            sub_match = re.match(r"^####\s+(.+?)(?:\n|$)", sb)
-            if sub_match:
-                key = sub_match.group(1).strip()
-                val = sb[sub_match.end():].strip()
-                subsections[key] = val
-
-        unit = {
-            "name": name,
-            "R": subsections.get("R \u2014 \u539f\u6587\u5f15\u7528", "") or subsections.get("R", ""),
-            "I": subsections.get("I \u2014 \u65b9\u6cd5\u8bba\u9aa8\u67b6", "") or subsections.get("I", ""),
-            "A1": subsections.get("A1 \u2014 \u4e66\u4e2d\u6848\u4f8b", "") or subsections.get("A1", ""),
-            "A2": subsections.get("A2 \u2014 \u89e6\u53d1\u573a\u666f", "") or subsections.get("A2", ""),
-            "E": subsections.get("E \u2014 \u53ef\u6267\u884c\u6b65\u9aa4", "") or subsections.get("E", ""),
-            "B": subsections.get("B \u2014 \u8fb9\u754c", "") or subsections.get("B", ""),
-            "verification": subsections.get("\u9a8c\u8bc1\u8bb0\u5f55", "")
-                              or subsections.get("\u9a8c\u8bc1", ""),
-        }
-        units.append(unit)
-
-    return units
-
 
 # ── 三重验证 ──────────────────────────────────────────────
+
 
 def check_v1(unit):
     """V1 跨域：检查 R 段是否包含 ≥2 个独立章节来源"""
@@ -184,7 +146,7 @@ def check_v2(unit):
         return False, "A2 段为空"
     scenarios = re.findall(r"^\d+[.、]\s+", a2_text, re.MULTILINE)
     scenarios += re.findall(r"^- ", a2_text, re.MULTILINE)
-    signals = len(re.findall(r'"', a2_text)) + len(re.findall(r'「', a2_text))
+    signals = len(re.findall(r'"', a2_text)) + len(re.findall(r"「", a2_text))
     if len(scenarios) >= 3 and signals >= 2:
         return True, f"场景 {len(scenarios)} 条, 信号 {signals} 个"
     return False, f"场景 {len(scenarios)} 条 (需≥3), 信号 {signals} 个 (需≥2)"
@@ -226,6 +188,7 @@ def triple_verify(unit):
 
 # ── 笔记信息提取 ──────────────────────────────────────────
 
+
 def parse_concept_table(content):
     concepts = []
     rows = re.findall(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|", content, re.MULTILINE)
@@ -233,11 +196,13 @@ def parse_concept_table(content):
         name = row[0].strip()
         if not name or name in ("概念", "概念1", "核心概念") or re.match(r"^[-]+$", name):
             continue
-        concepts.append({
-            "name": name,
-            "definition": row[1].strip(),
-            "scenario": row[2].strip(),
-        })
+        concepts.append(
+            {
+                "name": name,
+                "definition": row[1].strip(),
+                "scenario": row[2].strip(),
+            }
+        )
     return concepts
 
 
@@ -251,6 +216,7 @@ def extract_verification_summary(units):
 
 
 # ── 输出生成 ──────────────────────────────────────────────
+
 
 def format_methodology_card(unit, index):
     """生成单个方法论单元的 RIA++ 六段卡片 Markdown"""
@@ -318,7 +284,17 @@ def generate_skill(book_title, note_path, output_dir, force=False):
 
     if not all_units:
         print("⚠ 笔记中未找到方法论单元（## 方法论拆解），回退到旧格式解析...")
-        return _generate_legacy(book_title, note_path, output_dir, note_content, sections, slug, title, author, core_topic)
+        return _generate_legacy(
+            book_title,
+            note_path,
+            output_dir,
+            note_content,
+            sections,
+            slug,
+            title,
+            author,
+            core_topic,
+        )
 
     # ── 三重验证 ──
     passed_units = []
@@ -344,7 +320,7 @@ def generate_skill(book_title, note_path, output_dir, force=False):
                 f"| V2 预测力 | {r['result']['V2']} |\n"
                 f"| V3 独特性 | {r['result']['V3']} |\n\n"
                 f"## 未通过原因\n\n"
-                + "\n".join(f"- {reason}" for reason in r['result']['reasons'])
+                + "\n".join(f"- {reason}" for reason in r["result"]["reasons"])
                 + "\n\n---\n\n"
                 + f"## R 段原文\n\n{r['unit']['R']}\n\n"
                 + f"## I 段\n\n{r['unit']['I']}\n\n"
@@ -455,9 +431,74 @@ A: 每个方法论卡片的 A2（触发场景）指出了适用情境。可根�
     with open(skill_file, "w", encoding="utf-8") as f:
         f.write(skill_content)
 
-    print(f"✅ RIA++ Skill 已生成！")
+    # ── 生成 glossary.md ──
+    glossary_lines = ["# 术语表\n", f"> 《{title}》核心概念与术语\n", "---\n"]
+    if concepts:
+        glossary_lines.append("| 术语 | 定义 | 适用场景 |\n|------|------|---------|\n")
+        for c in concepts:
+            glossary_lines.append(f"| {c['name']} | {c['definition']} | {c['scenario']} |\n")
+    else:
+        glossary_lines.append("（笔记中未提取到独立术语表）\n")
+    (output_path / "glossary.md").write_text("".join(glossary_lines), encoding="utf-8")
+
+    # ── 生成 patterns.md ──
+    patterns_lines = ["# 模式与框架\n", f"> 《{title}》中的方法论模式、框架与结构\n", "---\n"]
+    for i, u in enumerate(passed_units):
+        name = u["name"]
+        i_text = u.get("I", "")[:200]
+        e_text = u.get("E", "")[:200]
+        patterns_lines.append(
+            f"## {name}\n\n**方法论骨架**：\n{i_text}\n\n**核心步骤**：\n{e_text}\n\n---\n"
+        )
+    (output_path / "patterns.md").write_text("".join(patterns_lines), encoding="utf-8")
+
+    # ── 生成 cheatsheet.md ──
+    cheatsheet_lines = ["# 速查表\n", f"> 《{title}》决策规则与快速参考\n", "---\n"]
+    cheatsheet_lines.append(
+        "| 场景 | 推荐方法论 | 核心步骤摘要 |\n|------|-----------|-------------|\n"
+    )
+    for u in passed_units:
+        name = u["name"]
+        a2 = u.get("A2", "")
+        scenarios = re.findall(r"^\d+[.、]\s*(.+?)$", a2, re.MULTILINE)
+        first_scene = scenarios[0][:40] if scenarios else "通用"
+        e = u.get("E", "")
+        steps = re.findall(r"\d+\.\s*(.+?)(?:\n|$)", e)
+        first_step = steps[0][:40] if steps else "见 SKILL.md"
+        cheatsheet_lines.append(f"| {first_scene} | {name} | {first_step} |\n")
+    (output_path / "cheatsheet.md").write_text("".join(cheatsheet_lines), encoding="utf-8")
+
+    # ── 生成 metadata.json ──
+    text_stats = {}
+    if Path(note_path).exists():
+        note_text = Path(note_path).read_text(encoding="utf-8")
+        text_stats = {"note_chars": len(note_text)}
+    metadata = {
+        "book_title": title,
+        "slug": slug,
+        "generated_at": datetime.now().isoformat(),
+        "version": "0.2.0",
+        "author": author,
+        "core_topic": core_topic,
+        "stats": {
+            "total_methodology_units": total,
+            "passed_units": len(passed_units),
+            "rejected_units": len(rejected_units),
+            "v1_pass": v1p,
+            "v2_pass": v2p,
+            "v3_pass": v3p,
+        },
+        "text_stats": text_stats,
+        "output_files": ["SKILL.md", "glossary.md", "patterns.md", "cheatsheet.md", "note.md"],
+    }
+    (output_path / "metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    print("✅ RIA++ Skill 已生成！")
     print(f"   路径：{skill_file}")
     print(f"   方法论单元：{len(passed_units)} 个")
+    print("   补充文件：glossary.md, patterns.md, cheatsheet.md, metadata.json")
     if rejected_units:
         print(f"   被过滤（未通过验证）：{len(rejected_units)} 个 → {rejected_dir}")
     print(f"   触发词：/book-{slug}")
@@ -467,7 +508,10 @@ A: 每个方法论卡片的 A2（触发场景）指出了适用情境。可根�
 
 # ── 旧格式回退 ────────────────────────────────────────────
 
-def _generate_legacy(book_title, note_path, output_dir, note_content, sections, slug, title, author, core_topic):
+
+def _generate_legacy(
+    book_title, note_path, output_dir, note_content, sections, slug, title, author, core_topic
+):
     """旧版生成逻辑：兼容旧格式笔记"""
     output_path = Path(output_dir) / slug
     output_path.mkdir(parents=True, exist_ok=True)
@@ -482,7 +526,7 @@ def _generate_legacy(book_title, note_path, output_dir, note_content, sections, 
             vm = re.match(r"^###\s+(.+?)(?:\n|$)", block.strip())
             if vm:
                 t = re.sub(r"^观点\d+[：:]\s*", "", vm.group(1).strip())
-                body = block[vm.end():].strip()
+                body = block[vm.end() :].strip()
                 viewpoints.append({"title": t, "body": body})
         if viewpoints:
             break
@@ -494,12 +538,14 @@ def _generate_legacy(book_title, note_path, output_dir, note_content, sections, 
                 if nm:
                     viewpoints.append({"title": nm.group(1).strip(), "body": ""})
 
-    concepts = parse_concept_table(sections.get("知识框架", "")) or parse_concept_table(sections.get("核心概念", ""))
+    concepts = parse_concept_table(sections.get("知识框架", "")) or parse_concept_table(
+        sections.get("核心概念", "")
+    )
     evaluation = sections.get("我的评价", "") or sections.get("评价与思考", "")
     limits = re.findall(r"^- (.+?)$", evaluation, re.MULTILINE)
 
     viewpoints_md = "\n\n".join(
-        f"{i+1}. **{vp['title']}**" + (f"\n   - {vp['body']}" if vp["body"] else "")
+        f"{i + 1}. **{vp['title']}**" + (f"\n   - {vp['body']}" if vp["body"] else "")
         for i, vp in enumerate(viewpoints)
     )
     concepts_md = "| 概念 | 定义 | 适用场景 |\n|------|------|---------|\n"
@@ -552,13 +598,14 @@ user-invocable: true
     with open(skill_file, "w", encoding="utf-8") as f:
         f.write(skill_content)
 
-    print(f"✅ 旧格式 Skill 已生成（兼容模式）")
+    print("✅ 旧格式 Skill 已生成（兼容模式）")
     print(f"   路径：{skill_file}")
-    print(f"   提示：建议升级笔记为 RIA++ 结构以获得更好效果")
+    print("   提示：建议升级笔记为 RIA++ 结构以获得更好效果")
     return skill_file
 
 
 # ── 命令行 ────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="RIA++ Skill 生成器")
@@ -567,8 +614,8 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=os.path.expanduser("~/.opencode/skill/books"),
-        help="输出目录（默认 ~/.opencode/skill/books）",
+        default=os.path.expanduser("~/.config/opencode/skill/books"),
+        help="输出目录（默认 ~/.config/opencode/skill/books）",
     )
     parser.add_argument(
         "--action",
